@@ -3,6 +3,7 @@
 import MetaTrader5 as mt5
 import numpy as np
 import pandas as pd
+from utils.indicators import Indicator
 
 class TradingBot:
     def __init__(self, login, password, server):
@@ -33,5 +34,8 @@ class TradingBot:
         return df
 
     def apply_strategy(self, data):
-        # Implement your trading strategy logic here
-        pass
+        indicator = Indicator(data.head(14))
+        calc = indicator.rsi()
+        last_indicator_value = calc.tail(1).values[0]
+        print(calc)
+        print(last_indicator_value)

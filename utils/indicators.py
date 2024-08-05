@@ -4,15 +4,15 @@ class Indicator:
         self.df = df
 
     def rsi(self, period=14):
-        delta = self.df['Close'].diff()
+        delta = self.df['close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
         rs = gain / loss
         return 100 - (100 / (1 + rs))
     
     def macd(self, short=12, long=26, signal=9):
-        short_ema = self.df['Close'].ewm(span=short, adjust=False).mean()
-        long_ema = self.df['Close'].ewm(span=long, adjust=False).mean()
+        short_ema = self.df['close'].ewm(span=short, adjust=False).mean()
+        long_ema = self.df['close'].ewm(span=long, adjust=False).mean()
         macd = short_ema - long_ema
         signal = macd.ewm(span=signal, adjust=False).mean()
         return macd, signal
@@ -25,4 +25,4 @@ class Indicator:
         return upper_band, lower_band
     
     def moving_average(self, period=20):
-        return self.df['Close'].rolling(window=period).mean()
+        return self.df['close'].rolling(window=period).mean()
