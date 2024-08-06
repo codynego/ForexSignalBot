@@ -8,6 +8,13 @@ metatrader5 = "*"
 python-dotenv = "*"
 numpy = "<2"
 pandas = "*"
+fastapi = "*"
+uvicorn = "*"
+sqlalchemy = "*"
+databases = {extras = ["mysql"], version = "*"}
+mysql-connector-python = "*"
+django = "*"
+djangorestframework = "*"
 
 [dev-packages]
 
