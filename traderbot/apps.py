@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 import threading
-from main import main as background_task
+
 
 
 class TraderbotConfig(AppConfig):
@@ -8,7 +8,8 @@ class TraderbotConfig(AppConfig):
     name = 'traderbot'
 
 
-    def ready(self):
-        thread = threading.Thread(target=background_task)
-        thread.daemon = True
-        thread.start()
+    # def ready(self):
+    #     from main import main as background_task
+    #     thread = threading.Thread(target=background_task)
+    #     thread.daemon = True
+    #     thread.start()

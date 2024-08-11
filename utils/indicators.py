@@ -1,3 +1,6 @@
+import asyncio
+
+
 class Indicator:
 
     def __init__(self, df):

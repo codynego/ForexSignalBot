@@ -1,6 +1,7 @@
-from bot import TradingBot
+
 from dotenv import load_dotenv
 import os
+import MetaTrader5 as mt5
 
 load_dotenv()
 
@@ -16,7 +17,5 @@ class Config:
     MT5_SERVER = os.environ['MT5_SERVER']
     MT5_PATH = ""
 
-    @classmethod
-    def bot_model(cls):
-        bot = TradingBot(cls.MT5_LOGIN, cls.MT5_PASSWORD, cls.MT5_SERVER)
-        return bot
+    MARKETS_LIST = ["BOOM 1000 INDEX", "CRASH 1000 INDEX", "VOL 100 INDEX", "VOL 75 INDEX"]
+    TIME_FRAMES = [mt5.TIMEFRAME_M1, mt5.TIMEFRAME_M5, mt5.TIMEFRAME_H1, mt5.TIMEFRAME_H4, mt5.TIMEFRAME_D1]

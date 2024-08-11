@@ -51,12 +51,14 @@ class Signal(BaseModel):
         ('HOLD', 'HOLD'),
     )
 
-    market = models.ForeignKey(Market, on_delete=models.CASCADE)
-    signal = models.CharField(max_length=255)
-    is_active = models.BooleanField(default=True)
+    symbol = models.CharField(max_length=255, null=True)
+    price = models.FloatField(null=True)
+    type = models.CharField(max_length=255, choices=SIGNAL_CHOICES, null=True)
+    strength = models.FloatField(null=True)
+    is_active = models.BooleanField(default=True, null=True)
 
     def __str__(self):
-        return self.market.name
+        return self.symbol
     
     class Meta:
         verbose_name = "Signal"
