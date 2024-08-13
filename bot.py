@@ -139,3 +139,4 @@ class TradingBot:
         if signal is None:
             return None
         return f"Symbol: {signal['symbol']}, Price: {signal['price']}, Type: {signal['type']}, Strength: {signal['strength']}"
+    
