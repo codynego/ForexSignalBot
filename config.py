@@ -17,5 +17,5 @@ class Config:
     MT5_SERVER = os.environ['MT5_SERVER']
     MT5_PATH = ""
 
-    MARKETS_LIST = ["Boom 1000 Index", "Crash 1000 Index", "Boom 300 Index", "Crash 300 Index"]
-    TIME_FRAMES = [mt5.TIMEFRAME_M1, mt5.TIMEFRAME_M5, mt5.TIMEFRAME_H1, mt5.TIMEFRAME_H4, mt5.TIMEFRAME_D1]
+    MARKETS_LIST = ["Boom 1000 Index", "Crash 1000 Index", "Boom 500 Index", "Crash 500 Index"]
+    TIME_FRAMES = [mt5.TIMEFRAME_M15, mt5.TIMEFRAME_M30, mt5.TIMEFRAME_H1]
