@@ -1,6 +1,6 @@
 from utils.indicators import Indicator
 #from ResistanceSupportDectector.detector import generate_buy_signal
-from ResistanceSupportDectector.detector import is_support_resistance, is_price_near_ma
+from ResistanceSupportDectector.detector import is_support_resistance, is_price_near_ma, is_bollinger_band_support_resistance, is_price_near_bollinger_band
 import asyncio
 
 class Strategy:
@@ -38,14 +38,42 @@ class Strategy:
             True if a buy signal is generated, False otherwise.
         """
 
-        ma_behavior = await is_support_resistance(df, ma_period)
-        price_near_ma = await is_price_near_ma(df, ma_period, tolerance)
+        indicator = Indicator(df)
+        ma48 = indicator.moving_average(48)
+        # check m0ving average 10 behavior
+        ma10_behavior = await is_support_resistance(df, ma_period)
+        price_near_ma10 = await is_price_near_ma(df, ma_period, tolerance)
+        breakout_10 = df['close'].iloc[-1] > df['MA_short'].iloc[-1] * (1 + breakout_threshold)
 
+        # check moving average 48 behavior
+
+        ma48_period = 48
+        ma48_behavior = await is_support_resistance(df, ma48_period)
+        price_near_ma48 = await is_price_near_ma(df, ma48_period, tolerance)
+        breakout_48 = df['close'].iloc[-1] > ma48.iloc[-1] * (1 + breakout_threshold)
+
+        # check bolling band behavior
+        #ma48_period = 48
+        bb_behavior = await is_bollinger_band_support_resistance(df)
+        price_near_bb = await is_price_near_bollinger_band(df)
+        breakout_48 = df['close'].iloc[-1] > ma48.iloc[-1] * (1 + breakout_threshold)
+
+
+        buy_signal = (
+            (ma10_behavior == 'support' and price_near_ma10 and breakout_10) or
+            (ma48_behavior == 'support' and price_near_ma48 and breakout_48) or
+            (bb_behavior == 'support' and price_near_bb == 'lower_band')
+    )
+        return buy_signal
         # Improved price breakout condition
-        if ma_behavior == 'support' and price_near_ma and df['close'].iloc[-1] > df['MA'].iloc[-1] * (1 + breakout_threshold):
-            return True
-        else:
-            return 
+        # if ma_behavior == 'support' and \
+        #     price_near_ma and \
+        #         df['close'].iloc[-1] > df['MA'].iloc[-1] * (1 + breakout_threshold) or \
+        #            ma48_behavior == "support" and \
+        #             price_near_ma48 and breakout_48:
+        #     return True
+        # else:
+        #     return 
         
 
     @classmethod
