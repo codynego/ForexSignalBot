@@ -122,7 +122,7 @@ async def is_bollinger_band_support_resistance(df, period=20, std_dev=2):
   
 
 
-def is_price_near_bollinger_band(df, period=20, std_dev=2, tolerance=0.02):
+async def is_price_near_bollinger_band(df, period=20, std_dev=2, tolerance=0.02):
   """
   Checks if the current price is near the upper or lower Bollinger Band.
 

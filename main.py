@@ -20,7 +20,7 @@ async def main():
             # Define timezone and calculate time range for data fetching
             timezone = pytz.timezone("Etc/UTC")
             end_time = datetime.now(tz=timezone)
-            start_time = end_time - timedelta(minutes=2040)  # 34 hours ago
+            start_time = end_time - timedelta(minutes=3600)  # 34 hours ago
             
             # Fetch data for multiple markets
             
@@ -31,14 +31,14 @@ async def main():
             # Generate signals for each market
             
             signals = await bot.process_multiple_signals(data_coroutines, Config.MARKETS_LIST)
-            print(signals)
-            #bot.close_position()
+            # print(signals)
+            bot.close_position()
             for signal in signals:
                 #print(signal)
                 if signal is None:
                     continue
-                #bot.open_trade(signal)
-                #bot.process_close_trade(signal)
+                bot.open_trade(signal)
+                bot.process_close_trade(signal)
                 #pint("postions", mt5.positions_total())
                 print(bot.signal_toString(signal), i, "seconds")  # Print each signal
             #print("========================================================", i)

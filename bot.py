@@ -86,7 +86,8 @@ class TradingBot:
                     return None
                 # else:
                 #     #last_data = time_frame_data.tail(1)["close"].values[0]
-        signal = {"symbol": symbol, "price": None, "type": None, "strength": None}
+        price = mt5.symbol_info_tick(symbol)._asdict()['ask']
+        signal = {"symbol": symbol, "price": price, "type": None, "strength": None}
 
         if strategy == "rsistrategy":
             # stra = Strategy.rsiStrategy(data)
