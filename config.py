@@ -18,4 +18,6 @@ class Config:
     MT5_PATH = ""
 
     MARKETS_LIST = ["Boom 1000 Index", "Crash 1000 Index", "Boom 500 Index", "Crash 500 Index"]
-    TIME_FRAMES = [mt5.TIMEFRAME_M15, mt5.TIMEFRAME_M30, mt5.TIMEFRAME_H1]
+    TIME_FRAMES = [mt5.TIMEFRAME_M1, mt5.TIMEFRAME_M5, mt5.TIMEFRAME_M15]
+
+    CONNECTION_TIMEOUT = 3

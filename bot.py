@@ -1,4 +1,3 @@
-import MetaTrader5 as mt5
 import numpy as np
 import pandas as pd
 from utils.indicators import Indicator
@@ -14,6 +13,7 @@ from asgiref.sync import sync_to_async
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 django.setup()
 from traderbot.models import Market, Indicator as IndicatorModel, Signal
+import MetaTrader5 as mt5
 
 class TradingBot:
     def __init__(self, login, password, server):
@@ -24,23 +24,23 @@ class TradingBot:
         self.signals_cache = {} 
     
     def connect(self):
-        if not mt5.initialize():
-            print("initialize() failed, error code =", mt5.last_error())
-            mt5.shutdown()
+        if not mt5.initialize(): # type: ignore
+            print("initialize() failed, error code =", mt5.last_error()) # type: ignore
+            mt5.shutdown() # type: ignore
             self.connected = False
             return self.connected
-        authorized = mt5.login(self.login, password=self.password, server=self.server)
+        authorized = mt5.login(self.login, password=self.password, server=self.server) # type: ignore
         self.connected = authorized
         return self.connected
 
     def disconnect(self):
-        mt5.shutdown()
+        mt5.shutdown() # type: ignore
         self.connected = False
 
     async def fetch_data(self, symbol, timeframe, start, end):
         if not self.connected:
             raise Exception("Not connected to MT5")
-        rates = mt5.copy_rates_range(symbol, timeframe, start, end)
+        rates = mt5.copy_rates_range(symbol, timeframe, start, end) # type: ignore
         df = pd.DataFrame(rates)
         return df
 
@@ -86,7 +86,7 @@ class TradingBot:
                     return None
                 # else:
                 #     #last_data = time_frame_data.tail(1)["close"].values[0]
-        price = mt5.symbol_info_tick(symbol)._asdict()['ask']
+        price = mt5.symbol_info_tick(symbol)._asdict()['ask'] # type: ignore
         signal = {"symbol": symbol, "price": price, "type": None, "strength": None}
 
         if strategy == "rsistrategy":
@@ -193,7 +193,7 @@ class TradingBot:
         }
         # print(mt5.positions_get())
         # print(mt5.account_info())
-        result = mt5.order_send(request)
+        result = mt5.order_send(request) # type: ignore
         #print("result",result)
 
         if result.retcode != mt5.TRADE_RETCODE_DONE:
@@ -213,8 +213,8 @@ class TradingBot:
             signal (dict, optional): A dictionary containing signal information. Defaults to None.
         """
 
-        positions = mt5.positions_get() if signal is None else mt5.positions_get(symbol=signal["symbol"])
-        print(mt5.positions_total())
+        positions = mt5.positions_get() if signal is None else mt5.positions_get(symbol=signal["symbol"]) # type: ignore
+        #print(mt5.positions_total())
         if len(positions) == 0:
             print("No open positions")
         
@@ -229,7 +229,7 @@ class TradingBot:
                 print("None")
                 break
             #print("positions",mt5.symbol_info_tick(pos.symbol))
-            point = mt5.symbol_info_tick(pos.symbol)._asdict()['ask'] if pos.type == mt5.ORDER_TYPE_BUY else mt5.symbol_info_tick(pos.symbol)._asdict()['bid']
+            point = mt5.symbol_info_tick(pos.symbol)._asdict()['ask'] if pos.type == mt5.ORDER_TYPE_BUY else mt5.symbol_info_tick(pos.symbol)._asdict()['bid'] # type: ignore
             deviation = 20
             request = {
                 "action": mt5.TRADE_ACTION_DEAL,
@@ -245,7 +245,7 @@ class TradingBot:
            
             }
 
-            result = mt5.order_send(request)
+            result = mt5.order_send(request) # type: ignore
             #print(result)
             if result.retcode != mt5.TRADE_RETCODE_DONE:
                 print(f"order_send failed, retcode =", result.retcode)
@@ -258,7 +258,7 @@ class TradingBot:
     def process_close_trade(self, signal):
         #print(self.signals_cache)
         type = "SELL" if signal["type"] == "BUY" else "BUY"
-        positions = mt5.positions_get(symbol=signal["symbol"])
+        positions = mt5.positions_get(symbol=signal["symbol"]) # type: ignore
         #print(positions)    
         sig_key = (signal['symbol'], signal["type"])
         for pos in positions:
