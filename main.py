@@ -62,7 +62,7 @@ async def main():
 
 
             # Wait for 60 seconds before fetching new data
-            await asyncio.sleep(900)
+            await asyncio.sleep(60)
         # except Exception as e:
         #     print("Error:", e)
         #     break

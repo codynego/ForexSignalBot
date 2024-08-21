@@ -3,6 +3,7 @@ from utils.indicators import Indicator
 from ResistanceSupportDectector.detector import is_support_resistance, is_price_near_ma, is_bollinger_band_support_resistance, is_price_near_bollinger_band
 import asyncio
 from ResistanceSupportDectector.spikeDectector import detect_spikes
+from ResistanceSupportDectector.aiStartegy import MyStrategy
 
 class Strategy:
     @classmethod
@@ -62,21 +63,30 @@ class Strategy:
 
 
         buy_conditions = [
-            ma10_behavior == 'support' and price_near_ma10,
-            ma48_behavior == 'support' and price_near_ma48,
-            bb_behavior == 'support' and price_near_bb == 'lower_band',
+            ma10_behavior == 'support',
+            price_near_ma10,
+            ma48_behavior == 'support',
+            price_near_ma48,
+            bb_behavior == 'support',
+            price_near_bb == 'lower_band'
         ]
+        print("buy_condition", buy_conditions)
         sell_conditions = [
-            ma10_behavior == 'resistance' and price_near_ma10,
-            ma48_behavior == 'resistance' and price_near_ma48,
-            bb_behavior == 'resistance' and price_near_bb == 'upper_band',
+            ma10_behavior == 'resistance',
+            price_near_ma10,
+            ma48_behavior == 'resistance',
+            price_near_ma48,
+            bb_behavior == 'resistance',
+            price_near_bb == 'upper_band'
         ]
+        print("sell_condition", sell_conditions)
         if any(buy_conditions) and not any(sell_conditions):
             return "BUY"
         elif any(sell_conditions) and not any(buy_conditions):
             return "SELL"
         else:
             return "HOLD"
+        
 
         
 
@@ -95,10 +105,12 @@ class Strategy:
         Returns:
             "BUY", "SELL", or "HOLD" based on the combined signals from all timeframes.
         """
-
+        
         tasks = []
         for df in dataframes:
-            tasks.append(asyncio.create_task(cls.rsiStrategy(df, ma_period, tolerance, breakout_threshold)))
+            startegy = MyStrategy(df)
+            #tasks.append(asyncio.create_task(cls.rsiStrategy(df, ma_period, tolerance, breakout_threshold)))
+            tasks.append(asyncio.create_task(startegy.run()))
 
         
         results = await asyncio.gather(*tasks)

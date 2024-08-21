@@ -101,16 +101,16 @@ class TradingBot:
             else:
                 return None
 
-            # Check for duplicate signals
-            # signal_key = (symbol, signal["type"])
-            # if signal_key in self.signals_cache:
-            #     return None  # Duplicate found
+            #Check for duplicate signals
+            signal_key = (symbol, signal["type"])
+            if signal_key in self.signals_cache:
+                return None  # Duplicate found
 
             # Save the signal to the database
             saved_signal = await self.save_to_database("Signal", symbol, signal)
                 
             # Update cache
-            # self.signals_cache[signal_key] = saved_signal
+            self.signals_cache[signal_key] = saved_signal
             return signal
             
 
