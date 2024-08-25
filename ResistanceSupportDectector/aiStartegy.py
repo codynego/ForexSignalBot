@@ -1,6 +1,7 @@
 import pandas as pd
 from ResistanceSupportDectector.detector import is_price_near_bollinger_band, is_price_near_ma, is_bollinger_band_support_resistance, is_support_resistance
 from utils.indicators import Indicator
+from config import Config
 
 
 
@@ -33,26 +34,85 @@ def detect_spike(df, window=20, threshold=1.5):
     return spikes
 
 
-
 def calculate_pivot_points(df):
-    high = df['high'].iloc[-1]
-    low = df['low'].iloc[-1]
-    close = df['close'].iloc[-1]
-    
-    pivot = (high + low + close) / 3
-    resistance1 = (2 * pivot) - low
-    support1 = (2 * pivot) - high
-    resistance2 = pivot + (high - low)
-    support2 = pivot - (high - low)
-    
-    return {
-        'pivot': pivot,
-        'resistance_1': resistance1,
-        'support_1': support1,
-        'resistance_2': resistance2,
-        'support_2': support2
-    }
+    """
+    Calculates pivot points, support, and resistance levels.
 
+    Args:
+    - df: DataFrame containing 'high', 'low', 'close' prices.
+
+    Returns:
+    - A DataFrame with pivot points, support, and resistance levels.
+    """
+
+    # Calculate Pivot Point (PP), Support, and Resistance levels
+    pivot_point = (df['high'] + df['low'] + df['close']) / 3
+    support1 = (2 * pivot_point) - df['high']
+    resistance1 = (2 * pivot_point) - df['low']
+    support2 = pivot_point - (df['high'] - df['low'])
+    resistance2 = pivot_point + (df['high'] - df['low'])
+    support3 = df['low'] - 2 * (df['high'] - pivot_point)
+    resistance3 = df['high'] + 2 * (pivot_point - df['low'])
+
+    # Create a new DataFrame for storing pivot points, support, and resistance levels
+    pivot_points_df = pd.DataFrame({
+        'pivot_point': pivot_point,
+        'support1': support1,
+        'resistance1': resistance1,
+        'support2': support2,
+        'resistance2': resistance2,
+        'support3': support3,
+        'resistance3': resistance3
+    })
+
+    return pivot_points_df
+
+
+def get_pivot_point_data(df, current_price, tolerance=0.005):
+    """
+    Determines if the current price is near pivot points, support, or resistance levels.
+
+    Args:
+    - df: DataFrame containing 'high', 'low', 'close' prices.
+    - current_price: The current price of the asset.
+    - tolerance: The allowed deviation from the pivot/support/resistance levels (default: 0.5%).
+
+    Returns:
+    - A dictionary indicating if the current price is near support or resistance levels.
+    """
+
+    # Calculate pivot points and levels
+    pivot_points_df = calculate_pivot_points(df)
+
+    # Get the last row of pivot points (for the most recent data)
+    latest_pivot = pivot_points_df.iloc[-1]
+
+    # Determine if the current price is near any key levels
+    near_support = False
+    near_resistance = False
+
+    # Check if the current price is near any of the supports or resistances
+    if abs(current_price - latest_pivot['support1']) / latest_pivot['support1'] <= tolerance:
+        near_support = True
+    elif abs(current_price - latest_pivot['support2']) / latest_pivot['support2'] <= tolerance:
+        near_support = True
+    elif abs(current_price - latest_pivot['support3']) / latest_pivot['support3'] <= tolerance:
+        near_support = True
+
+    if abs(current_price - latest_pivot['resistance1']) / latest_pivot['resistance1'] <= tolerance:
+        near_resistance = True
+    elif abs(current_price - latest_pivot['resistance2']) / latest_pivot['resistance2'] <= tolerance:
+        near_resistance = True
+    elif abs(current_price - latest_pivot['resistance3']) / latest_pivot['resistance3'] <= tolerance:
+        near_resistance = True
+
+    return {
+        'near_support': near_support,
+        'near_resistance': near_resistance,
+        'pivot_point': latest_pivot['pivot_point'],
+        'support_levels': [latest_pivot['support1'], latest_pivot['support2'], latest_pivot['support3']],
+        'resistance_levels': [latest_pivot['resistance1'], latest_pivot['resistance2'], latest_pivot['resistance3']]
+    }
 
 def detect_trend(df):
     short_ema = df['close'].ewm(span=50, adjust=False).mean()
@@ -66,70 +126,171 @@ def detect_trend(df):
         return 'sideways'
 
 
-def calculate_signal_strength(trend, rsi_value, pivot_point_data, ma_proximity, bb_signal, ma_support_resistance, bb_support_resistance, spike_indices, current_index):
+# def calculate_signal_strength(trend, rsi_value, pivot_point_data, ma_proximity, bb_signal, ma_support_resistance, bb_support_resistance, spike_indices, current_index):
+#     """
+#     Calculate the strength of the buy/sell signal based on trend, RSI, proximity to pivot points,
+#     and support/resistance levels for MA and Bollinger Bands, including spike detection.
+
+#     Args:
+#     - trend: The current trend ('uptrend', 'downtrend', 'sideways')
+#     - rsi_value: The RSI value to determine overbought/oversold conditions.
+#     - pivot_point_data: Data on pivot points to check proximity to support/resistance.
+#     - ma_proximity: A boolean indicating whether price is near the moving average.
+#     - bb_signal: Bollinger Band signal ('upper_band', 'lower_band', or 'neutral')
+#     - ma_support_resistance: Whether MA is acting as support or resistance ('support', 'resistance', 'neutral')
+#     - bb_support_resistance: Whether Bollinger Bands are acting as support or resistance ('support', 'resistance', 'neutral')
+#     - spike_indices: List of indices where spikes were detected.
+#     - current_index: The index of the current price point for evaluating spike influence.
+
+#     Returns:
+#     - Signal strength as an integer between 0 and 100.
+#     """
+#     strength = 0
+
+#     # Base on trend direction
+#     if trend == 'uptrend':
+#         strength += 30
+#     elif trend == 'downtrend':
+#         strength += 30
+
+#     # Check RSI
+#     if rsi_value < 30:  # Oversold, potential buy signal
+#         strength += 20
+#     elif rsi_value > 70:  # Overbought, potential sell signal
+#         strength += 20
+
+#     # Check if price is near a moving average
+#     if ma_proximity:
+#         strength += 10
+
+#     # MA support/resistance
+#     if ma_support_resistance == 'support':
+#         strength += 10
+#     elif ma_support_resistance == 'resistance':
+#         strength += 10
+
+#     # Check Bollinger Band signals
+#     if bb_signal == 'upper_band':
+#         strength += 10
+#     elif bb_signal == 'lower_band':
+#         strength += 10
+
+#     # Bollinger Bands support/resistance
+#     if bb_support_resistance == 'support':
+#         strength += 10
+#     elif bb_support_resistance == 'resistance':
+#         strength += 10
+
+#     # Pivot point proximity
+#     if pivot_point_data['support_1'] <= strength <= pivot_point_data['resistance_1']:
+#         strength += 20
+
+#     # Check for spikes
+#     if current_index in spike_indices:
+#         strength += 20  # Increase strength if a spike is detected at the current index
+
+#     return min(strength, 100)  # Cap the strength at 100
+
+
+def calculate_signal_strength(
+    df,
+    trend, 
+    rsi_value, 
+    pivot_point_data, 
+    ma_proximity, 
+    ma48_proximity,
+    bb_signal, 
+    ma_support_resistance,
+    ma48_support_resistance, 
+    bb_support_resistance, 
+    spike_indices, 
+    current_index
+):
     """
-    Calculate the strength of the buy/sell signal based on trend, RSI, proximity to pivot points,
-    and support/resistance levels for MA and Bollinger Bands, including spike detection.
+    Calculates the strength of a buy/sell signal based on various indicators.
 
     Args:
-    - trend: The current trend ('uptrend', 'downtrend', 'sideways')
-    - rsi_value: The RSI value to determine overbought/oversold conditions.
-    - pivot_point_data: Data on pivot points to check proximity to support/resistance.
-    - ma_proximity: A boolean indicating whether price is near the moving average.
-    - bb_signal: Bollinger Band signal ('upper_band', 'lower_band', or 'neutral')
-    - ma_support_resistance: Whether MA is acting as support or resistance ('support', 'resistance', 'neutral')
-    - bb_support_resistance: Whether Bollinger Bands are acting as support or resistance ('support', 'resistance', 'neutral')
-    - spike_indices: List of indices where spikes were detected.
-    - current_index: The index of the current price point for evaluating spike influence.
+    - trend: The current market trend (bullish or bearish).
+    - rsi_value: The current RSI value (e.g., 30 = oversold, 70 = overbought).
+    - pivot_point_data: Data regarding the nearest pivot points (S1, R1, etc.).
+    - ma_proximity: Whether the price is near the moving average.
+    - bb_signal: Whether the price is near the upper or lower Bollinger Band.
+    - ma_support_resistance: Whether the moving average is acting as support or resistance.
+    - bb_support_resistance: Whether the Bollinger Band is acting as support or resistance.
+    - spike_indices: Indices where spikes are detected.
+    - current_index: The index of the current bar being analyzed.
 
     Returns:
-    - Signal strength as an integer between 0 and 100.
+    - A signal strength value or category indicating strong buy, weak buy, weak sell, or strong sell.
     """
-    strength = 0
 
-    # Base on trend direction
-    if trend == 'uptrend':
-        strength += 30
-    elif trend == 'downtrend':
-        strength += 30
+    # Initialize signal strength to neutral
+    strength = 0.5  # Start with neutral strength (0.5 represents neutral, 0 strong sell, 1 strong buy)
 
-    # Check RSI
-    if rsi_value < 30:  # Oversold, potential buy signal
-        strength += 20
-    elif rsi_value > 70:  # Overbought, potential sell signal
-        strength += 20
+    ### Moving Average (MA) Proximity and Support/Resistance ###
+    if ma_support_resistance == 'support' and ma_proximity:
+        strength += 0.1  # Stronger buy signal if the moving average acts as support
+    elif ma_support_resistance == 'resistance' and ma_proximity:
+        strength -= 0.1  # Stronger sell signal if the moving average acts as resistance
 
-    # Check if price is near a moving average
-    if ma_proximity:
-        strength += 10
 
-    # MA support/resistance
-    if ma_support_resistance == 'support':
-        strength += 10
-    elif ma_support_resistance == 'resistance':
-        strength += 10
+    if ma48_support_resistance == 'support' and ma48_proximity:
+        strength += 0.1  # Stronger buy signal if the moving average acts as support
+    elif ma48_support_resistance == 'resistance' and ma48_proximity:
+        strength -= 0.1  # Stronger sell signal if the moving average acts as resistance
+    
+    # # If price is near the moving average, slightly boost the signal strength
+    # if ma_proximity:
+    #     strength += 0.05
 
-    # Check Bollinger Band signals
-    if bb_signal == 'upper_band':
-        strength += 10
-    elif bb_signal == 'lower_band':
-        strength += 10
+    # if ma48_proximity:
+    #     strength += 0.05
 
-    # Bollinger Bands support/resistance
+    ### Bollinger Band (BB) Proximity and Support/Resistance ###
     if bb_support_resistance == 'support':
-        strength += 10
+        strength += 0.15  # Strong buy if the Bollinger Band acts as support
     elif bb_support_resistance == 'resistance':
-        strength += 10
+        strength -= 0.15  # Strong sell if the Bollinger Band acts as resistance
+    
+    # Boost the signal based on proximity to upper/lower Bollinger Bands
+    if bb_signal == 'upper_band':
+        strength -= 0.1  # Selling pressure at upper Bollinger Band
+    elif bb_signal == 'lower_band':
+        strength += 0.1  # Buying pressure at lower Bollinger Band
 
-    # Pivot point proximity
-    if pivot_point_data['support_1'] <= strength <= pivot_point_data['resistance_1']:
-        strength += 20
+    ### Spike Detection ###
+    if len(spike_indices) > 0 and spike_indices[-1] == current_index:
+        # If the last spike occurred at the current price bar
+        strength -= 0.2  # Spikes in Boom/Crash markets usually suggest a reversal
 
-    # Check for spikes
-    if current_index in spike_indices:
-        strength += 20  # Increase strength if a spike is detected at the current index
+    ### RSI Indicator ###
+    if rsi_value < 30:
+        strength += 0.1  # Oversold, so stronger buy signal
+    elif rsi_value > 70:
+        strength -= 0.1  # Overbought, so stronger sell signal
 
-    return min(strength, 100)  # Cap the strength at 100
+
+
+    pivot_point_data = get_pivot_point_data(df, current_price=df['close'].iloc[-1])
+
+    if pivot_point_data['near_support']:
+        strength += 0.15  # Stronger buy signal if price is near support levels
+    elif pivot_point_data['near_resistance']:
+        strength -= 0.15  # Stronger sell signal if price is near resistance levels
+
+    ### Trend Detection ###
+    if trend == 'uptrend':
+        strength += 0.1  # Bullish trend enhances buy signal
+    elif trend == 'downtrend':
+        strength -= 0.1  # Bearish trend enhances sell signal
+
+
+
+    # Normalize the signal strength to be between 0 and 1
+    strength = max(0, min(1, strength))
+
+    return strength
+
 
 
 
@@ -158,35 +319,83 @@ class MyStrategy():
         rsi_value = self.rsi.iloc[-1]
         
         # 4. Check if price is near MA
-        ma_proximity = await is_price_near_ma(self.df, ma_period=10, tolerance=0.05)
+        ma_proximity = await is_price_near_ma(self.df, ma_period=10, tolerance=0.01)
+
+        ma48_proximity = await is_price_near_ma(self.df, ma_period=48, tolerance=0.01)
         
         # 5. Check Bollinger Band signal
-        bb_signal = await is_price_near_bollinger_band(self.df, period=20, std_dev=2, tolerance=0.02)
+        bb_signal = await is_price_near_bollinger_band(self.df, period=20, std_dev=2, tolerance=0.01)
 
         bb_support_resistance = await is_bollinger_band_support_resistance(self.df)
         ma_support_resistance  = await is_support_resistance(self.df, 10)
+        ma48_support_resistance  = await is_support_resistance(self.df, 48)
         
         # 6. Calculate the signal strength
         signal_strength = calculate_signal_strength(
+            self.df,
             trend,
             rsi_value,
             pivot_point_data,
             ma_proximity,
+            ma48_proximity,
             bb_signal,
             ma_support_resistance,
+            ma48_support_resistance,
             bb_support_resistance,
             spike_indices=spike_indices,
             current_index=current_index
         )
             
         
-        # 7. Execute trade based on signal strength
-        if signal_strength >= 60:
-            # Strong buy signal
-            return "BUY"
-        elif signal_strength <= 40:
-            # Strong sell signal
-            return "SELL"
+        # # 7. Execute trade based on signal strength
+        # if signal_strength >= 0.7:
+        #     # Strong buy signal
+        #     return 
+        # elif signal_strength <= 0.2:
+        #     # Strong sell signal
+        #     return "SELL"
+        return signal_strength
+    
 
+async def combine_timeframe_signals(timeframes, weights=None):
+        """
+        Combines the signal strengths from multiple timeframes using weighted averaging.
+
+        Args:
+        - m5_strength: Signal strength from the M5 timeframe (0 to 1).
+        - m15_strength: Signal strength from the M15 timeframe (0 to 1).
+        - m30_strength: Signal strength from the M30 timeframe (0 to 1).
+        - m5_weight: Weight for M5 signal strength.
+        - m15_weight: Weight for M15 signal strength.
+        - m30_weight: Weight for M30 signal strength.
+
+        Returns:
+        - Combined signal strength and its category.
+        """
+
+        # Weighted average of signal strengths
+        # combined_strength = (m5_strength * m5_weight +
+        #                     m15_strength * m15_weight +
+        #                     m30_strength * m30_weight)
+        
+        if weights is None:
+            weights = Config.WEIGHTS.values()
+
+        combined_strength = 0
+        for tf, weight in zip(timeframes, weights):
+            combined_strength += tf * weight
+        # Determine the final signal category
+        if combined_strength >= 0.8:
+            final_signal = 'strong buy'
+        elif 0.6 <= combined_strength < 0.8:
+            final_signal = 'weak buy'
+        elif 0.4 <= combined_strength < 0.6:
+            final_signal = 'neutral'
+        elif 0.2 <= combined_strength < 0.4:
+            final_signal = 'weak sell'
+        else:
+            final_signal = 'strong sell'
+
+        return combined_strength, final_signal
 
 

@@ -4,6 +4,7 @@ from config import Config
 from datetime import datetime, timedelta
 import pytz
 import MetaTrader5 as mt5
+import threading
 # Initialize bot with credentials from config
 bot = TradingBot(Config.MT5_LOGIN, Config.MT5_PASSWORD, Config.MT5_SERVER)
 
@@ -20,7 +21,7 @@ async def main():
         print("retrying in 3 seconds")
         await asyncio.sleep(3)
 
-        print("trying to connect...")
+        print("trying to reconnect...")
         connect = bot.connect()
         
         # 
@@ -48,14 +49,22 @@ async def main():
             signals = await bot.process_multiple_signals(data_coroutines, Config.MARKETS_LIST)
             # print(signals)
             #bot.close_position()
+            catch_spikes = True
+            all_tasks = []
             for signal in signals:
                 #print(signal)
-                if signal is None or signal["type"] == "HOLD":
+                if signal is None:
                     continue
-                bot.open_trade(signal)
+                if signal["type"] != "HOLD":
+                    print(bot.signal_toString(signal), i, "seconds")
+                # tasks = asyncio.create_task(bot.open_trade(signal, catch_spikes=catch_spikes))
+                # all_tasks.append(tasks)
+
+                await bot.open_trade(signal, catch_spikes=True)
                 bot.process_close_trade(signal)
                 #pint("postions", mt5.positions_total())
-                print(bot.signal_toString(signal), i, "seconds")  # Print each signal
+                  # Print each signal
+            await asyncio.gather(*all_tasks)
             #print("========================================================", i)
             i = i + 1
             #print("========================================================")

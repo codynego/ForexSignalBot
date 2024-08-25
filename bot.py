@@ -7,6 +7,7 @@ from config import Config
 import os
 import django
 from asgiref.sync import sync_to_async
+import time
 
 
 # Django setup
@@ -56,7 +57,7 @@ class TradingBot:
         data_tasks = [self.fetch_data(market, timeframe, start, end) for timeframe in Config.TIME_FRAMES]
         return await asyncio.gather(*data_tasks)
     
-    import asyncio
+
 
     async def fetch_data_for_multiple_markets(self, markets, start, end):
         """Fetches data for multiple markets and timeframes concurrently.
@@ -91,7 +92,9 @@ class TradingBot:
 
         if strategy == "rsistrategy":
             # stra = Strategy.rsiStrategy(data)
-            stra = await Strategy.process_multiple_timeframes(data)
+            stra, strength = await Strategy.process_multiple_timeframes(data)
+     
+            signal["strength"] = round(strength, 2)
             if stra == 1:
                 signal["type"] = "BUY"
             elif stra == -1:
@@ -164,45 +167,72 @@ class TradingBot:
             return None
         return f"Symbol: {signal['symbol']}, Price: {signal['price']}, Type: {signal['type']}, Strength: {signal['strength']}"
     
-    def open_trade(self, signal):
+
+    async def open_trade(self, signal, catch_spikes=False):
+        #await asyncio.sleep(180)
         symbol = signal["symbol"]
-        lot_size = 1.0
+        lot_size = 0.2  # Lot size can be dynamic based on account balance or risk management strategy
 
-        if signal["type"] == "BUY":
-            order_type = mt5.ORDER_TYPE_BUY
-        else:
-            order_type = mt5.ORDER_TYPE_SELL
-        
-        #print(mt5.symbol_info_tick(symbol)._asdict()['ask'])
+        # Tolerance for order placement
+        tolerance = signal["price"] * 0.007
         price = signal["price"]
+        
+
         if price is None:
-            print("couldnt retrieve", symbol)
+            print(f"Couldn't retrieve price for {symbol}. Disconnecting...")
             self.disconnect()
-        
-        stop_loss = price - 0.0100
-        take_profit = price + 0.0150
+            return  # Exit the function if price is None
 
-        request = {
-            "action": mt5.TRADE_ACTION_DEAL,
-            "symbol": symbol,
-            "volume": lot_size,
-            "type": order_type,
-            "price": price,
-            # "sl": stop_loss,
-            # "tp": take_profit,  # Add take_profit to request
-        }
-        # print(mt5.positions_get())
-        # print(mt5.account_info())
-        result = mt5.order_send(request) # type: ignore
-        #print("result",result)
-
-        if result.retcode != mt5.TRADE_RETCODE_DONE:
-            print(f"Order failed, retcode={result.retcode}, error_desc={result.retcode}")
+        if catch_spikes:
+            # If spike detection is enabled, you might have a separate logic for spike handling
+            await self.catch_spikes(signal)
         else:
-            print(f"{signal["type"]} Order successfully placed for {symbol}!")
-        
-        #print(self.signals_cache)
+            if signal["type"] == "BUY":
+                order_type = mt5.ORDER_TYPE_BUY  # Buy limit order below the current price
+                newprice = min(signal["price"] + tolerance, price) 
+                
+            elif signal["type"] == "SELL":
+                order_type = mt5.ORDER_TYPE_SELL  # Sell limit order above the current price
+                newprice = min(signal["price"] - tolerance, price)  # Sell limit price should be above the current price
+            else:
+                # print(f"Unknown signal type: {signal['type']}")
+                return
 
+            # Define Stop Loss and Take Profit
+            stop_loss = price - 0.0100 if signal["type"] == "BUY" else price + 0.0100
+            take_profit = price + 0.0150 if signal["type"] == "BUY" else price - 0.0150
+
+            # Build the trade request
+            request = {
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": lot_size,
+                "type": order_type,
+                "price": newprice,
+                # "sl": stop_loss,  # Adding stop loss to the request
+                # "tp": take_profit,  # Adding take profit to the request
+            }
+
+            # Send the order
+            result = mt5.order_send(request)  # type: ignore
+            #print("Order result:", result)
+
+            if result.retcode != mt5.TRADE_RETCODE_DONE:
+                print(f"Order failed for {symbol}, retcode={result.retcode}, error_desc={result.retcode}")
+            else:
+                print(f"{signal['type']} Order successfully placed for {symbol} at price {price}!")
+
+            
+            #print(self.signals_cache)
+
+    async def catch_spikes(self, signal):
+        symbol_split = signal["symbol"].split(" ")
+        if signal["type"] == "BUY" and symbol_split[0] == "Crash":
+            return
+        elif signal["type"] == "SELL" and symbol_split[0] == "Boom":
+            return
+        else:
+            await self.open_trade(signal)
 
 
     def close_position(self, signal=None):
@@ -260,14 +290,29 @@ class TradingBot:
         type = "SELL" if signal["type"] == "BUY" else "BUY"
         positions = mt5.positions_get(symbol=signal["symbol"]) # type: ignore
         #print(positions)    
-        sig_key = (signal['symbol'], signal["type"])
+        sig_key = (signal['symbol'], type)
+        
         for pos in positions:
-            if pos._asdict()['type'] == 1 and signal['type'] == "BUY" and pos._asdict()['symbol'] == signal['symbol']:
+            if pos._asdict()['type'] == 0 and signal['type'] == "SELL" and pos._asdict()['symbol'] == signal['symbol']:
                 self.close_position(signal=signal)
-                del self.signals_cache[sig_key]
+                self.signals_cache.pop(sig_key)
             elif pos._asdict()['type'] == 1 and signal['type'] == "BUY" and pos._asdict()['symbol'] == signal['symbol']:
                 self.close_position(signal=signal)
-                del self.signals_cache[sig_key]
+                self.signals_cache.pop(sig_key)
+            elif signal["strength"] < 0.65 and pos._asdict()['type'] == 0:
+                self.close_position(signal=signal)
+
+            elif signal["strength"] > 0.5 and pos._asdict()['type'] == 1:
+                self.close_position(signal=signal)
+            # elif trailing_stop:
+            #     trailing_stop_price = df['close'].iloc[-1] - (atr * 2) if pos_type == 0 else df['close'].iloc[-1] + (atr * 2)
+            #     if df['close'].iloc[-1] < trailing_stop_price and pos_type == 0:  # Close BUY if below trailing stop
+            #         self.close_position(signal=signal)
+            #         self.signals_cache.pop(sig_key)
+            #     elif df['close'].iloc[-1] > trailing_stop_price and pos_type == 1:  # Close SELL if above trailing stop
+            #         self.close_position(signal=signal)
+            #         self.signals_cache.pop(sig_key)
+                # self.signals_cache.pop(sig_key)
         
 
         #print("postions", mt5.positions_total())
@@ -275,3 +320,5 @@ class TradingBot:
         # if signal_key in self.signals_cache:
         #     self.close_position(signal=signal)
         # return None
+
+        

@@ -21,3 +21,4 @@ class Config:
     TIME_FRAMES = [mt5.TIMEFRAME_M1, mt5.TIMEFRAME_M5, mt5.TIMEFRAME_M15]
 
     CONNECTION_TIMEOUT = 3
+    WEIGHTS = {"M1": 0.2, "M5": 0.3, "M15": 0.5}

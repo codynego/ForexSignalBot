@@ -3,7 +3,7 @@ from utils.indicators import Indicator
 from ResistanceSupportDectector.detector import is_support_resistance, is_price_near_ma, is_bollinger_band_support_resistance, is_price_near_bollinger_band
 import asyncio
 from ResistanceSupportDectector.spikeDectector import detect_spikes
-from ResistanceSupportDectector.aiStartegy import MyStrategy
+from ResistanceSupportDectector.aiStartegy import MyStrategy, combine_timeframe_signals
 
 class Strategy:
     @classmethod
@@ -63,30 +63,26 @@ class Strategy:
 
 
         buy_conditions = [
-            ma10_behavior == 'support',
-            price_near_ma10,
-            ma48_behavior == 'support',
-            price_near_ma48,
+            ma10_behavior == 'support' and price_near_ma10,
+            ma48_behavior == 'support'and price_near_ma48,
             bb_behavior == 'support',
             price_near_bb == 'lower_band'
         ]
-        print("buy_condition", buy_conditions)
+        #print("buy_condition", buy_conditions)
         sell_conditions = [
-            ma10_behavior == 'resistance',
-            price_near_ma10,
-            ma48_behavior == 'resistance',
-            price_near_ma48,
+            ma10_behavior == 'resistance' and price_near_ma10,
+            ma48_behavior == 'resistance' and price_near_ma48,
             bb_behavior == 'resistance',
             price_near_bb == 'upper_band'
         ]
-        print("sell_condition", sell_conditions)
+        #print("sell_condition", sell_conditions)
         if any(buy_conditions) and not any(sell_conditions):
             return "BUY"
         elif any(sell_conditions) and not any(buy_conditions):
             return "SELL"
         else:
             return "HOLD"
-        
+    
 
         
 
@@ -107,18 +103,41 @@ class Strategy:
         """
         
         tasks = []
+        task2 = []
         for df in dataframes:
             startegy = MyStrategy(df)
-            #tasks.append(asyncio.create_task(cls.rsiStrategy(df, ma_period, tolerance, breakout_threshold)))
+            task2.append(asyncio.create_task(cls.rsiStrategy(df, ma_period, tolerance, breakout_threshold)))
             tasks.append(asyncio.create_task(startegy.run()))
 
-        
+        result2 = await asyncio.gather(*task2)
         results = await asyncio.gather(*tasks)
+        strength, signal = await combine_timeframe_signals(results)
+                #Check if all signals are the same
+        # if all(result == "BUY" for result in results):
+        #     return 1
+        # elif all(result == "SELL" for result in results):
+        #     return -1
+        # else:
+        #     return 0
+        print("stregth", strength)
+
+
+        if strength >= 0.65 and all(result == "BUY" for result in result2):
+            return [1, strength]
+        elif strength >= 0.7:
+            return [1, strength]
+        elif strength <= 0.52 and all(result == "SELL" for result in result2):
+            return [-1, strength]
+        elif strength <= 0.4:
+            return [-1, strength]
+        else:
+            return [0, strength]
+        
 
         # Check if all signals are the same
-        if all(result == "BUY" for result in results):
-            return 1
-        elif all(result == "SELL" for result in results):
-            return -1
-        else:
-            return 0
+        # if all(result == "BUY" for result in results):
+        #     return 1
+        # elif all(result == "SELL" for result in results):
+        #     return -1
+        # else:
+        #     return 0

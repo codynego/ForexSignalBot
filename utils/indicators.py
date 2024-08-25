@@ -32,3 +32,12 @@ class Indicator:
     def moving_average(self, period=10):
         data = self.df.head(period)
         return data['close'].rolling(window=period).mean()
+
+    def calculate_atr(self, period=14):
+        df = self.df
+        df['high_low'] = df['high'] - df['low']
+        df['high_close'] = abs(df['high'] - df['close'].shift())
+        df['low_close'] = abs(df['low'] - df['close'].shift())
+        tr = df[['high_low', 'high_close', 'low_close']].max(axis=1)
+        atr = tr.rolling(window=period).mean()
+        return atr

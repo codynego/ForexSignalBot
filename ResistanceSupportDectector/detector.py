@@ -67,7 +67,7 @@ async def is_support_resistance(df, ma_period=10):
     return support_resistance
 
 
-async def is_price_near_ma(df, ma_period=10, tolerance=0.05):
+async def is_price_near_ma(df, ma_period=10, tolerance=0.005):
   """
   Checks if the current price is within a tolerance of the MA.
 
@@ -122,7 +122,7 @@ async def is_bollinger_band_support_resistance(df, period=20, std_dev=2):
   
 
 
-async def is_price_near_bollinger_band(df, period=20, std_dev=2, tolerance=0.02):
+async def is_price_near_bollinger_band(df, period=20, std_dev=2, tolerance=0.005):
   """
   Checks if the current price is near the upper or lower Bollinger Band.
 
